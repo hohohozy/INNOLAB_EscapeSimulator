@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Escape Simulation</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(9, 40px); grid-gap: 1px; }
+        .cell { width: 40px; height: 40px; display: inline-block; border: 1px solid #ddd; }
+        .fire { background-color: red; }
+        .path { background-color: blue; }
+        .empty { background-color: white; }
+    </style>
+</head>
+<body>
+
+<h1>Fire Escape Simulation</h1>
+<div class="grid">
+    {% for i in range(map_width * map_height) %}
+        <div class="cell" id="cell-{{i}}" style="background-color: white;"></div>
+    {% endfor %}
+</div>
+
+<button onclick="startSimulation()">Start Simulation</button>
+
+<script>
+    const fireZone = {{ fire_zone | tojson }};
+    const mapWidth = {{ map_width }};
+    const mapHeight = {{ map_height }};
+    
+    function startSimulation() {
+        // 模拟火灾扩展
+        fetch('/simulate_fire').then(response => response.json()).then(data => {
+            updateFire(data.fire_zone);
+        });
+
+        // 获取并显示逃生路径
+        fetch('/get_escape_route').then(response => response.json()).then(data => {
+            updateEscapeRoute(data.escape_route);
+        });
+    }
+
+    // 更新火灾区域
+    function updateFire(fireZone) {
+        fireZone.forEach(([x, y]) => {
+            const cell = document.getElementById(`cell-${y * mapWidth + x}`);
+            cell.style.backgroundColor = 'red'; // 火灾区域变红色
+        });
+    }
+
+    // 更新逃生路径
+    function updateEscapeRoute(escapeRoute) {
+        escapeRoute.forEach(([x, y]) => {
+            const cell = document.getElementById(`cell-${y * mapWidth + x}`);
+            cell.style.backgroundColor = 'blue'; // 逃生路径为蓝色
+        });
+    }
+</script>
+
+</body>
+</html>
