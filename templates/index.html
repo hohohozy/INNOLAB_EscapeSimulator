@@ -5,12 +5,13 @@
     <title>Fire Escape Simulation</title>
     <style>
         body { font-family: sans-serif; text-align: center; }
-        .floor { margin: 10px; }
+        .container { display: flex; justify-content: center; }
+        .floor { margin: 10px; display: flex; flex-direction: column; align-items: center; }
         .grid {
             display: grid;
             grid-template-columns: repeat({{ map_width }}, 30px);
             gap: 2px;
-            margin: 10px auto;
+            margin: 10px;
         }
         .cell {
             width: 30px;
@@ -57,18 +58,21 @@
         <div><span class="color-box" style="background-color: yellow;"></span> People</div>
     </div>
 
-    {% for floor in range(floor_count|int - 1, -1, -1) %}
-    <div class="floor">
-        <h3>Floor {{ floor }}</h3>
-        <div class="grid" id="floor-{{ floor }}">
-            {% for y in range(map_height) %}
-                {% for x in range(map_width) %}
-                    <div class="cell" id="cell-{{ x }}-{{ y }}-{{ floor }}"></div>
+    <!-- Container to hold both floors side by side -->
+    <div class="container">
+        {% for floor in range(floor_count|int - 1, -1, -1) %}
+        <div class="floor">
+            <h3>Floor {{ floor }}</h3>
+            <div class="grid" id="floor-{{ floor }}">
+                {% for y in range(map_height) %}
+                    {% for x in range(map_width) %}
+                        <div class="cell" id="cell-{{ x }}-{{ y }}-{{ floor }}"></div>
+                    {% endfor %}
                 {% endfor %}
-            {% endfor %}
+            </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 
     <script>
         const fire = {{ fire | tojson }};
