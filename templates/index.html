@@ -24,12 +24,38 @@
         .exit { background-color: green; }
         .stair { background-color: purple; }
         .person { background-color: yellow; }
+        .legend {
+            text-align: left;
+            margin: 20px auto;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .legend div {
+            margin: 5px 0;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Fire Escape Simulation</h1>
     <button onclick="simulateStep()">Start Simulation</button>
     <p id="status"></p>
+
+    <!-- Legend to explain color meanings -->
+    <div class="legend">
+        <h3>Legend:</h3>
+        <div><span class="color-box" style="background-color: red;"></span> Fire Zone</div>
+        <div><span class="color-box" style="background-color: blue;"></span> Escape Path</div>
+        <div><span class="color-box" style="background-color: black;"></span> Evacuee</div>
+        <div><span class="color-box" style="background-color: green;"></span> Exit</div>
+        <div><span class="color-box" style="background-color: purple;"></span> Stairs</div>
+        <div><span class="color-box" style="background-color: yellow;"></span> People</div>
+    </div>
 
     {% for floor in range(floor_count|int - 1, -1, -1) %}
     <div class="floor">
