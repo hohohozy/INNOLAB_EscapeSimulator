@@ -2,69 +2,98 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fire Escape Simulation</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        .grid { display: grid; grid-template-columns: repeat(9, 40px); grid-gap: 1px; margin: 20px auto; width: fit-content; }
-        .cell { width: 40px; height: 40px; border: 1px solid #ddd; }
+        body { font-family: sans-serif; text-align: center; }
+        .floor { margin: 10px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat({{ map_width }}, 30px);
+            gap: 2px;
+            margin: 10px auto;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ccc;
+            background-color: white;
+        }
         .fire { background-color: red; }
         .path { background-color: blue; }
-        .empty { background-color: white; }
+        .evacuee { background-color: black; }
+        .exit { background-color: green; }
+        .stair { background-color: purple; }
+        .person { background-color: yellow; }
     </style>
 </head>
 <body>
+    <h1>Fire Escape Simulation</h1>
+    <button onclick="simulateStep()">Start Simulation</button>
+    <p id="status"></p>
 
-<h1>Fire Escape Simulation</h1>
-<div class="grid">
-    {% for i in range(map_width * map_height) %}
-        <div class="cell" id="cell-{{i}}" style="background-color: white;"></div>
+    {% for floor in range(floor_count|int - 1, -1, -1) %}
+    <div class="floor">
+        <h3>Floor {{ floor }}</h3>
+        <div class="grid" id="floor-{{ floor }}">
+            {% for y in range(map_height) %}
+                {% for x in range(map_width) %}
+                    <div class="cell" id="cell-{{ x }}-{{ y }}-{{ floor }}"></div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
     {% endfor %}
-</div>
 
-<button onclick="startSimulation()">Start Simulation</button>
+    <script>
+        const fire = {{ fire | tojson }};
+        const evacuee = {{ evacuee | tojson }};
+        const stairs = {{ stairs | tojson }};
+        const exits = {{ exits | tojson }};
+        const people = {{ people | tojson }};
+        let escaped = false;
 
-<script>
-    const fireZone = {{ fire_zone | tojson }};
-    const mapWidth = {{ map_width }};
-    const mapHeight = {{ map_height }};
-
-    // 初始火灾显示
-    updateFire(fireZone);
-
-    function startSimulation() {
-        resetGrid();
-
-        fetch('/simulate_fire')
-            .then(response => response.json())
-            .then(data => updateFire(data.fire_zone));
-
-        fetch('/get_escape_route')
-            .then(response => response.json())
-            .then(data => updateEscapeRoute(data.escape_route));
-    }
-
-    function resetGrid() {
-        for (let i = 0; i < mapWidth * mapHeight; i++) {
-            const cell = document.getElementById(`cell-${i}`);
-            cell.style.backgroundColor = 'white';
+        function colorCell(x, y, f, cls) {
+            const cell = document.getElementById(`cell-${x}-${y}-${f}`);
+            if (cell) cell.className = 'cell ' + cls;
         }
-    }
 
-    function updateFire(fireZone) {
-        fireZone.forEach(([x, y]) => {
-            const cell = document.getElementById(`cell-${y * mapWidth + x}`);
-            cell.style.backgroundColor = 'red';
-        });
-    }
+        function drawInitial() {
+            stairs.forEach(([x, y]) => {
+                colorCell(x, y, 0, 'stair');
+                colorCell(x, y, 1, 'stair');
+            });
+            exits.forEach(([x, y, f]) => colorCell(x, y, f, 'exit'));
+            people.forEach(([x, y, f]) => colorCell(x, y, f, 'person'));
+            fire.forEach(([x, y, f]) => colorCell(x, y, f, 'fire'));
+            colorCell(evacuee[0], evacuee[1], evacuee[2], 'evacuee');
+        }
 
-    function updateEscapeRoute(escapeRoute) {
-        escapeRoute.forEach(([x, y]) => {
-            const cell = document.getElementById(`cell-${y * mapWidth + x}`);
-            cell.style.backgroundColor = 'blue';
-        });
-    }
-</script>
+        function simulateStep() {
+            if (escaped) return;
 
+            fetch('/next')
+                .then(res => res.json())
+                .then(data => {
+                    document.querySelectorAll('.cell').forEach(c => c.className = 'cell');
+                    drawInitial();
+
+                    data.fire.forEach(([x, y, f]) => colorCell(x, y, f, 'fire'));
+                    data.path.forEach(([x, y, f]) => colorCell(x, y, f, 'path'));
+
+                    if (data.path.length > 0) {
+                        const [ex, ey, ef] = data.path[data.path.length - 1];
+                        if (exits.some(([x, y, f]) => x === ex && y === ey && f === ef)) {
+                            document.getElementById('status').innerText = '✅ Evacuee has escaped safely!';
+                            escaped = true;
+                        }
+                    } else {
+                        document.getElementById('status').innerText = '❌ No path available. Trapped!';
+                        escaped = true;
+                    }
+                });
+        }
+
+        drawInitial();
+    </script>
 </body>
 </html>
