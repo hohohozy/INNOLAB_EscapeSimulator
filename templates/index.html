@@ -1,40 +1,129 @@
-<button onclick="startSimulation()">Start Simulate</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fire Escape Simulation</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; }
+        .container { display: flex; justify-content: center; }
+        .floor { margin: 10px; display: flex; flex-direction: column; align-items: center; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat({{ map_width }}, 30px);
+            gap: 2px;
+            margin: 10px;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ccc;
+            background-color: white;
+        }
+        .fire { background-color: red; }
+        .path { background-color: blue; }
+        .evacuee { background-color: black; }
+        .exit { background-color: green; }
+        .stair { background-color: purple; }
+        .person { background-color: yellow; }
+        .legend {
+            text-align: left;
+            margin: 20px auto;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .legend div {
+            margin: 5px 0;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fire Escape Simulation</h1>
+    <button onclick="simulateStep()">Start Simulation</button>
+    <p id="status"></p>
 
-<script>
-    let fireZones = [];
-    let path = [];
+    <!-- Legend to explain color meanings -->
+    <div class="legend">
+        <h3>Legend:</h3>
+        <div><span class="color-box" style="background-color: red;"></span> Fire Zone</div>
+        <div><span class="color-box" style="background-color: blue;"></span> Escape Path</div>
+        <div><span class="color-box" style="background-color: black;"></span> Evacuee</div>
+        <div><span class="color-box" style="background-color: green;"></span> Exit</div>
+        <div><span class="color-box" style="background-color: purple;"></span> Stairs</div>
+        <div><span class="color-box" style="background-color: yellow;"></span> People</div>
+    </div>
 
-    // Function to start the simulation
-    function startSimulation() {
-        fetch('/start_simulation')
-            .then(response => response.json())
-            .then(data => {
-                fireZones = data.fire;
-                path = data.path;
-                updateMap();  // Update the map after fire expansion and path generation
-            });
-    }
+    <!-- Container to hold both floors side by side -->
+    <div class="container">
+        {% for floor in range(floor_count|int - 1, -1, -1) %}
+        <div class="floor">
+            <h3>Floor {{ floor }}</h3>
+            <div class="grid" id="floor-{{ floor }}">
+                {% for y in range(map_height) %}
+                    {% for x in range(map_width) %}
+                        <div class="cell" id="cell-{{ x }}-{{ y }}-{{ floor }}"></div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 
-    // Update the map with fire zones and path
-    function updateMap() {
-        // Reset the map
-        for (let i = 0; i < MAP_WIDTH; i++) {
-            for (let j = 0; j < MAP_HEIGHT; j++) {
-                let cell = document.getElementById(`cell-${i}-${j}`);
-                cell.className = 'cell';  // Reset the class
-            }
+    <script>
+        const fire = {{ fire | tojson }};
+        const evacuee = {{ evacuee | tojson }};
+        const stairs = {{ stairs | tojson }};
+        const exits = {{ exits | tojson }};
+        const people = {{ people | tojson }};
+        let escaped = false;
+
+        function colorCell(x, y, f, cls) {
+            const cell = document.getElementById(`cell-${x}-${y}-${f}`);
+            if (cell) cell.className = 'cell ' + cls;
         }
 
-        // Mark fire zones
-        fireZones.forEach(([x, y]) => {
-            let cell = document.getElementById(`cell-${x}-${y}`);
-            cell.classList.add('fire');
-        });
+        function drawInitial() {
+            stairs.forEach(([x, y]) => {
+                colorCell(x, y, 0, 'stair');
+                colorCell(x, y, 1, 'stair');
+            });
+            exits.forEach(([x, y, f]) => colorCell(x, y, f, 'exit'));
+            people.forEach(([x, y, f]) => colorCell(x, y, f, 'person'));
+            fire.forEach(([x, y, f]) => colorCell(x, y, f, 'fire'));
+            colorCell(evacuee[0], evacuee[1], evacuee[2], 'evacuee');
+        }
 
-        // Mark path
-        path.forEach(([x, y]) => {
-            let cell = document.getElementById(`cell-${x}-${y}`);
-            cell.classList.add('path');
-        });
-    }
-</script>
+        function simulateStep() {
+            if (escaped) return;
+
+            fetch('/next')
+                .then(res => res.json())
+                .then(data => {
+                    document.querySelectorAll('.cell').forEach(c => c.className = 'cell');
+                    drawInitial();
+
+                    data.fire.forEach(([x, y, f]) => colorCell(x, y, f, 'fire'));
+                    data.path.forEach(([x, y, f]) => colorCell(x, y, f, 'path'));
+
+                    if (data.path.length > 0) {
+                        const [ex, ey, ef] = data.path[data.path.length - 1];
+                        if (exits.some(([x, y, f]) => x === ex && y === ey && f === ef)) {
+                            document.getElementById('status').innerText = '✅ Evacuee has escaped safely!';
+                            escaped = true;
+                        }
+                    } else {
+                        document.getElementById('status').innerText = '❌ No path available. Trapped!';
+                        escaped = true;
+                    }
+                });
+        }
+
+        drawInitial();
+    </script>
+</body>
+</html>
