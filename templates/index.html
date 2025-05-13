@@ -1,138 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evacuation Simulation</title>
-    <style>
-        /* Basic styling for the map */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(9, 30px);
-            grid-template-rows: repeat(9, 30px);
-            gap: 1px;
-        }
-        .cell {
-            width: 30px;
-            height: 30px;
-            border: 1px solid #ddd;
-        }
-        .fire { background-color: red; }
-        .evacuee { background-color: blue; }
-        .wall { background-color: black; }
-        .path { background-color: green; }
-        .person { background-color: yellow; }
-        .exit { background-color: green; }
-        .stair { background-color: purple; }
-        .extinguisher { background-color: pink; }
-        .medical { background-color: orange; }
-    </style>
-</head>
-<body>
-    <h1>Evacuation Simulation</h1>
-    <p>Current Floor: <span id="current-floor">{{ floor_count }}</span></p>
-    <div class="grid" id="map">
-        {% for i in range(map_width) %}
-            {% for j in range(map_height) %}
-                <div class="cell" id="cell-{{ i }}-{{ j }}"></div>
-            {% endfor %}
-        {% endfor %}
-    </div>
+<button onclick="startSimulation()">Start Simulate</button>
 
-    <button onclick="nextStep()">Next Step</button>
+<script>
+    let fireZones = [];
+    let path = [];
 
-    <script>
-        let fireZones = {{ fire|tojson }};
-        let path = [];
-        let people = {{ people|tojson }};
-        let evacuee = {{ evacuee|tojson }};
-        let walls = {{ walls|tojson }};
-        let exits = {{ exits|tojson }};
-        let stairs = {{ stairs|tojson }};
-        let extinguishers = {{ extinguishers|tojson }};
-        let medicalPoints = {{ medical_points|tojson }};
-        let currentFloor = {{ floor_count }};
-        
-        function updateMap() {
-            // Reset the map
-            for (let i = 0; i < 9; i++) {
-                for (let j = 0; j < 9; j++) {
-                    let cell = document.getElementById(`cell-${i}-${j}`);
-                    cell.className = 'cell'; // Reset the class
-                }
+    // Function to start the simulation
+    function startSimulation() {
+        fetch('/start_simulation')
+            .then(response => response.json())
+            .then(data => {
+                fireZones = data.fire;
+                path = data.path;
+                updateMap();  // Update the map after fire expansion and path generation
+            });
+    }
+
+    // Update the map with fire zones and path
+    function updateMap() {
+        // Reset the map
+        for (let i = 0; i < MAP_WIDTH; i++) {
+            for (let j = 0; j < MAP_HEIGHT; j++) {
+                let cell = document.getElementById(`cell-${i}-${j}`);
+                cell.className = 'cell';  // Reset the class
             }
-
-            // Mark fire zones
-            fireZones.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('fire');
-            });
-
-            // Mark evacuee
-            let [evacueeX, evacueeY] = evacuee;
-            let evacueeCell = document.getElementById(`cell-${evacueeX}-${evacueeY}`);
-            evacueeCell.classList.add('evacuee');
-
-            // Mark people
-            people.forEach(person => {
-                let cell = document.getElementById(`cell-${person.x}-${person.y}`);
-                cell.classList.add('person');
-            });
-
-            // Mark walls
-            walls.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('wall');
-            });
-
-            // Mark exits
-            exits.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('exit');
-            });
-
-            // Mark stairs
-            stairs.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('stair');
-            });
-
-            // Mark extinguishers
-            extinguishers.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('extinguisher');
-            });
-
-            // Mark medical points
-            medicalPoints.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('medical');
-            });
-
-            // Mark path (if any)
-            path.forEach(([x, y]) => {
-                let cell = document.getElementById(`cell-${x}-${y}`);
-                cell.classList.add('path');
-            });
-
-            // Update current floor
-            document.getElementById("current-floor").innerText = currentFloor;
         }
 
-        function nextStep() {
-            fetch('/next')
-                .then(response => response.json())
-                .then(data => {
-                    fireZones = data.fire;
-                    path = data.path;
-                    people = data.people;
-                    currentFloor = data.floor;
-                    updateMap();
-                });
-        }
+        // Mark fire zones
+        fireZones.forEach(([x, y]) => {
+            let cell = document.getElementById(`cell-${x}-${y}`);
+            cell.classList.add('fire');
+        });
 
-        // Initialize the map when the page loads
-        updateMap();
-    </script>
-</body>
-</html>
+        // Mark path
+        path.forEach(([x, y]) => {
+            let cell = document.getElementById(`cell-${x}-${y}`);
+            cell.classList.add('path');
+        });
+    }
+</script>
