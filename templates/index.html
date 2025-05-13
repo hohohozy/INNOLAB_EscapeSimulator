@@ -5,8 +5,21 @@
     <title>Fire Evacuation Simulator</title>
     <style>
         body { font-family: sans-serif; }
-        #map { display: grid; grid-template-columns: repeat(9, 30px); grid-gap: 2px; margin-top: 10px; position: relative; }
-        .cell { width: 30px; height: 30px; text-align: center; font-size: 14px; line-height: 30px; }
+        #map { 
+            display: grid; 
+            grid-template-columns: repeat(9, 30px); 
+            grid-template-rows: repeat(9, 30px); 
+            gap: 2px; 
+            margin-top: 10px; 
+            position: relative; 
+        }
+        .cell { 
+            width: 30px; 
+            height: 30px; 
+            text-align: center; 
+            font-size: 14px; 
+            line-height: 30px; 
+        }
 
         /* Color Markings */
         .empty { background: #eee; }
@@ -19,14 +32,8 @@
         .wall { background: black; }
         .medical { background: lightblue; }
         .extinguisher { background: purple; color: white; }
-        .path {
-            background: cyan;
-            opacity: 0.5;
-        }
-        .moving {
-            background: pink;
-            transition: all 0.5s ease-in-out;
-        }
+        .path { background: cyan; opacity: 0.5; }
+        .moving { background: pink; transition: all 0.5s ease-in-out; }
     </style>
 </head>
 <body>
@@ -58,7 +65,7 @@
 
         function renderMap() {
             const map = document.getElementById('map');
-            map.innerHTML = '';
+            map.innerHTML = '';  // Clear any existing map content
 
             // 1. Render grid
             for (let y = 0; y < 9; y++) {
@@ -74,21 +81,23 @@
                     if (extinguishers.some(p => p[0] === x && p[1] === y)) cell.classList.add('extinguisher');
                     if (STAIRS.some(p => p[0] === x && p[1] === y)) cell.classList.add('stairs');
                     if (EXIT_LOCATIONS.some(p => p[0] === x && p[1] === y)) cell.classList.add('exit');
-                    
+
+                    // Append to map
+                    cell.style.gridColumnStart = x + 1;
+                    cell.style.gridRowStart = y + 1;
                     map.appendChild(cell);
                 }
             }
 
             // 2. Render escape path for the main character
             if (path.length > 0) {
-                for (let i = 0; i < path.length; i++) {
-                    const step = path[i];
+                path.forEach(step => {
                     const pathCell = document.createElement('div');
                     pathCell.classList.add('cell', 'path');
                     pathCell.style.gridColumnStart = step[0] + 1;
                     pathCell.style.gridRowStart = step[1] + 1;
                     map.appendChild(pathCell);
-                }
+                });
             }
 
             // 3. Render the main character's current position
