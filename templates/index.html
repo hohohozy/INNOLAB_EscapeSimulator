@@ -24,10 +24,13 @@
         .person { background-color: yellow; }
         .exit { background-color: green; }
         .stair { background-color: purple; }
+        .extinguisher { background-color: pink; }
+        .medical { background-color: orange; }
     </style>
 </head>
 <body>
     <h1>Evacuation Simulation</h1>
+    <p>Current Floor: <span id="current-floor">{{ floor_count }}</span></p>
     <div class="grid" id="map">
         {% for i in range(map_width) %}
             {% for j in range(map_height) %}
@@ -46,6 +49,9 @@
         let walls = {{ walls|tojson }};
         let exits = {{ exits|tojson }};
         let stairs = {{ stairs|tojson }};
+        let extinguishers = {{ extinguishers|tojson }};
+        let medicalPoints = {{ medical_points|tojson }};
+        let currentFloor = {{ floor_count }};
         
         function updateMap() {
             // Reset the map
@@ -55,7 +61,7 @@
                     cell.className = 'cell'; // Reset the class
                 }
             }
-            
+
             // Mark fire zones
             fireZones.forEach(([x, y]) => {
                 let cell = document.getElementById(`cell-${x}-${y}`);
@@ -91,11 +97,26 @@
                 cell.classList.add('stair');
             });
 
+            // Mark extinguishers
+            extinguishers.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('extinguisher');
+            });
+
+            // Mark medical points
+            medicalPoints.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('medical');
+            });
+
             // Mark path (if any)
             path.forEach(([x, y]) => {
                 let cell = document.getElementById(`cell-${x}-${y}`);
                 cell.classList.add('path');
             });
+
+            // Update current floor
+            document.getElementById("current-floor").innerText = currentFloor;
         }
 
         function nextStep() {
@@ -104,6 +125,8 @@
                 .then(data => {
                     fireZones = data.fire;
                     path = data.path;
+                    people = data.people;
+                    currentFloor = data.floor;
                     updateMap();
                 });
         }
