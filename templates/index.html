@@ -34,6 +34,24 @@
         .extinguisher { background: purple; color: white; }
         .path { background: cyan; opacity: 0.5; }
         .moving { background: pink; transition: all 0.5s ease-in-out; }
+
+        /* Color Legend Styling */
+        .legend { 
+            margin-top: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            width: 200px; 
+        }
+        .legend-item {
+            display: flex; 
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .legend-color { 
+            width: 20px; 
+            height: 20px; 
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -48,6 +66,58 @@
     </div>
 
     <div id="map"></div>
+
+    <!-- Color Legend -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #eee;"></div>
+            <span>Empty space</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: red;"></div>
+            <span>Fire zone</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: blue;"></div>
+            <span>Evacuee (Main Character)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: green;"></div>
+            <span>Person</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: gray;"></div>
+            <span>Trapped Person</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: yellow;"></div>
+            <span>Stairs</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: orange;"></div>
+            <span>Exit</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: black;"></div>
+            <span>Wall</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: lightblue;"></div>
+            <span>Medical station</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: purple;"></div>
+            <span>Fire extinguisher</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: cyan;"></div>
+            <span>Escape path</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: pink;"></div>
+            <span>Evacuee movement</span>
+        </div>
+    </div>
 
     <script>
         let evacueePosition = {x: 0, y: 0};  // Main character position
