@@ -27,7 +27,7 @@
         .person { background-color: yellow; }
         .legend {
             text-align: left;
-            margin: 20px auto;
+            margin: 30px auto 20px;
             display: inline-block;
             font-size: 14px;
         }
@@ -63,7 +63,7 @@
         {% endfor %}
     </div>
 
-    <!-- Legend to explain color meanings -->
+    <!-- Legend moved to below the map -->
     <div class="legend">
         <h3>Legend:</h3>
         <div><span class="color-box" style="background-color: red;"></span> Fire Zone</div>
@@ -73,7 +73,7 @@
         <div><span class="color-box" style="background-color: purple;"></span> Stairs</div>
         <div><span class="color-box" style="background-color: yellow;"></span> People</div>
     </div>
-    
+
     <script>
         const fire = {{ fire | tojson }};
         const evacuee = {{ evacuee | tojson }};
