@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fire Evacuation Simulation</title>
+    <title>Fire Evacuation Simulator</title>
     <style>
         body { font-family: sans-serif; }
-        #map { display: grid; grid-template-columns: repeat(9, 30px); grid-gap: 2px; margin-top: 10px; }
+        #map { display: grid; grid-template-columns: repeat(9, 30px); grid-gap: 2px; margin-top: 10px; position: relative; }
         .cell { width: 30px; height: 30px; text-align: center; font-size: 14px; line-height: 30px; }
+
+        /* Color Markings */
         .empty { background: #eee; }
         .fire { background: red; color: white; }
         .evacuee { background: blue; color: white; font-weight: bold; }
@@ -17,110 +19,114 @@
         .wall { background: black; }
         .medical { background: lightblue; }
         .extinguisher { background: purple; color: white; }
+        .path {
+            background: cyan;
+            opacity: 0.5;
+        }
+        .moving {
+            background: pink;
+            transition: all 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body>
     <h1>🔥 Fire Evacuation Simulator</h1>
-    <button onclick="toggleAuto()">⏯ 自动模拟</button>
-    <button onclick="nextStep()">⏭ 手动一步</button>
+    <button onclick="toggleAuto()">⏯ Auto Simulation</button>
+    <button onclick="nextStep()">⏭ Next Step</button>
 
     <div id="status">
-        <p>轮数：<span id="turn">0</span></p>
-        <p>逃出人数：<span id="escaped">0</span></p>
-        <p>被困人数：<span id="trapped">0</span></p>
-        <p>仍在逃生：<span id="alive">0</span></p>
+        <p>Turn: <span id="turn">0</span></p>
+        <p>Escaped: <span id="escaped">0</span></p>
+        <p>Trapped: <span id="trapped">0</span></p>
     </div>
 
     <div id="map"></div>
 
     <script>
-        let auto = false;
-        let turn = 0;
-        let intervalId = null;
+        let evacueePosition = {x: 0, y: 0};  // Main character position
+        let people = [];  // Array to store positions of all people
+        let fireZones = [];  // Fire zone positions
+        let path = [];  // Main character's escape path
+        let turn = 0;  // Turns counter
+        let autoSimulation = false;  // Toggle auto simulation
 
-        function toggleAuto() {
-            auto = !auto;
-            if (auto) {
-                intervalId = setInterval(nextStep, 1000);
-            } else {
-                clearInterval(intervalId);
-            }
-        }
-
-        async function nextStep() {
-            const res = await fetch('/next');
-            const data = await res.json();
-            turn = data.turn;
-            updateStats(data);
-            renderMap(data);
-        }
-
-        function updateStats(data) {
-            const total = data.people.length;
-            const escaped = data.people.filter(p => p.status === 'escaped').length;
-            const trapped = data.people.filter(p => p.status === 'trapped').length;
-            const alive = total - escaped - trapped;
-
+        function updateStatus() {
             document.getElementById('turn').innerText = turn;
-            document.getElementById('escaped').innerText = escaped;
-            document.getElementById('trapped').innerText = trapped;
-            document.getElementById('alive').innerText = alive;
+            document.getElementById('escaped').innerText = people.filter(p => p.type === 'escaped').length;
+            document.getElementById('trapped').innerText = people.filter(p => p.type === 'trapped').length;
         }
 
-        function renderMap(data) {
+        function renderMap() {
             const map = document.getElementById('map');
             map.innerHTML = '';
-            const floors = 2;
-            for (let f = 0; f < floors; f++) {
-                const label = document.createElement('div');
-                label.innerHTML = `<b>Floor ${f}</b>`;
-                label.style.gridColumn = 'span 9';
-                map.appendChild(label);
 
-                for (let y = 0; y < 9; y++) {
-                    for (let x = 0; x < 9; x++) {
-                        const cell = document.createElement('div');
-                        cell.classList.add('cell', 'empty');
-                        const pos = [x, y, f];
+            // 1. Render grid
+            for (let y = 0; y < 9; y++) {
+                for (let x = 0; x < 9; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell', 'empty');
+                    const pos = [x, y];
 
-                        if (data.fire.some(p => same(p, pos))) cell.classList.add('fire');
-                        else if (data.people.some(p => same(p.pos, pos) && p.status === 'alive')) cell.classList.add('person');
-                        else if (data.people.some(p => same(p.pos, pos) && p.status === 'trapped')) {
-                            cell.classList.add('trapped');
-                            cell.innerText = 'X';
-                        }
-                        else if (data.path && data.path.length > 0 && same(data.path[0], pos)) cell.classList.add('evacuee');
-                        if (stairs.some(p => p[0] === x && p[1] === y)) cell.classList.add('stairs');
-                        if (exits.some(p => same(p, pos))) cell.classList.add('exit');
-                        if (walls.some(p => p[0] === x && p[1] === y)) cell.classList.add('wall');
-                        if (medical_points.some(p => same(p, pos))) cell.classList.add('medical');
-                        if (extinguishers.some(p => same(p, pos))) cell.classList.add('extinguisher');
-
-                        map.appendChild(cell);
-                    }
+                    // Render fire, walls, extinguishers, etc.
+                    if (fireZones.some(p => p[0] === x && p[1] === y)) cell.classList.add('fire');
+                    if (walls.some(p => p[0] === x && p[1] === y)) cell.classList.add('wall');
+                    if (medicalPoints.some(p => p[0] === x && p[1] === y)) cell.classList.add('medical');
+                    if (extinguishers.some(p => p[0] === x && p[1] === y)) cell.classList.add('extinguisher');
+                    if (STAIRS.some(p => p[0] === x && p[1] === y)) cell.classList.add('stairs');
+                    if (EXIT_LOCATIONS.some(p => p[0] === x && p[1] === y)) cell.classList.add('exit');
+                    
+                    map.appendChild(cell);
                 }
+            }
+
+            // 2. Render escape path for the main character
+            if (path.length > 0) {
+                for (let i = 0; i < path.length; i++) {
+                    const step = path[i];
+                    const pathCell = document.createElement('div');
+                    pathCell.classList.add('cell', 'path');
+                    pathCell.style.gridColumnStart = step[0] + 1;
+                    pathCell.style.gridRowStart = step[1] + 1;
+                    map.appendChild(pathCell);
+                }
+            }
+
+            // 3. Render the main character's current position
+            const evacueeCell = document.createElement('div');
+            evacueeCell.classList.add('cell', 'moving');
+            evacueeCell.style.gridColumnStart = evacueePosition.x + 1;
+            evacueeCell.style.gridRowStart = evacueePosition.y + 1;
+            map.appendChild(evacueeCell);
+        }
+
+        function nextStep() {
+            // Simulate next step in evacuation process
+            turn++;
+            // Update status and path for the main character
+            updateStatus();
+            renderMap();
+        }
+
+        function toggleAuto() {
+            autoSimulation = !autoSimulation;
+            if (autoSimulation) {
+                // Auto simulation logic goes here
+                setInterval(nextStep, 1000);
             }
         }
 
-        function same(a, b) {
-            return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+        // Initialization
+        function initSimulation() {
+            // Fetch the initial simulation data from the server
+            fetch('/').then(response => response.json()).then(data => {
+                evacueePosition = data.evacuations.main_character;
+                fireZones = data.fire_zones;
+                people = data.people;
+                renderMap();
+            });
         }
 
-        // 模拟数据（首次加载使用）
-        let stairs = [[4, 4]];
-        let exits = [[0, 8, 0], [8, 8, 0]];
-        let walls = [];
-        let medical_points = [];
-        let extinguishers = [];
-
-        // 获取初始化地图数据（如墙体、医疗等）
-        fetch('/').then(res => res.text()).then(html => {
-            document.open();
-            document.write(html);
-            document.close();
-        });
-
-        nextStep(); // 初始化一步
+        initSimulation();
     </script>
 </body>
 </html>
