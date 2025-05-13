@@ -2,210 +2,114 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fire Evacuation Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evacuation Simulation</title>
     <style>
-        body { font-family: sans-serif; }
-        #map { 
-            display: grid; 
-            grid-template-columns: repeat(9, 30px); 
-            grid-template-rows: repeat(9, 30px); 
-            gap: 2px; 
-            margin-top: 10px; 
-            position: relative; 
+        /* Basic styling for the map */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(9, 30px);
+            grid-template-rows: repeat(9, 30px);
+            gap: 1px;
         }
-        .cell { 
-            width: 30px; 
-            height: 30px; 
-            text-align: center; 
-            font-size: 14px; 
-            line-height: 30px; 
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ddd;
         }
-
-        /* Color Markings */
-        .empty { background: #eee; }
-        .fire { background: red; color: white; }
-        .evacuee { background: blue; color: white; font-weight: bold; }
-        .person { background: green; color: white; }
-        .trapped { background: gray; color: white; }
-        .stairs { background: yellow; }
-        .exit { background: orange; }
-        .wall { background: black; }
-        .medical { background: lightblue; }
-        .extinguisher { background: purple; color: white; }
-        .path { background: cyan; opacity: 0.5; }
-        .moving { background: pink; transition: all 0.5s ease-in-out; }
-
-        /* Color Legend Styling */
-        .legend { 
-            margin-top: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            width: 200px; 
-        }
-        .legend-item {
-            display: flex; 
-            align-items: center;
-            margin-bottom: 5px;
-        }
-        .legend-color { 
-            width: 20px; 
-            height: 20px; 
-            margin-right: 10px;
-        }
+        .fire { background-color: red; }
+        .evacuee { background-color: blue; }
+        .wall { background-color: black; }
+        .path { background-color: green; }
+        .person { background-color: yellow; }
+        .exit { background-color: green; }
+        .stair { background-color: purple; }
     </style>
 </head>
 <body>
-    <h1>🔥 Fire Evacuation Simulator</h1>
-    <button onclick="toggleAuto()">⏯ Auto Simulation</button>
-    <button onclick="nextStep()">⏭ Next Step</button>
-
-    <div id="status">
-        <p>Turn: <span id="turn">0</span></p>
-        <p>Escaped: <span id="escaped">0</span></p>
-        <p>Trapped: <span id="trapped">0</span></p>
+    <h1>Evacuation Simulation</h1>
+    <div class="grid" id="map">
+        {% for i in range(map_width) %}
+            {% for j in range(map_height) %}
+                <div class="cell" id="cell-{{ i }}-{{ j }}"></div>
+            {% endfor %}
+        {% endfor %}
     </div>
 
-    <div id="map"></div>
-
-    <!-- Color Legend -->
-    <div class="legend">
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #eee;"></div>
-            <span>Empty space</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: red;"></div>
-            <span>Fire zone</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: blue;"></div>
-            <span>Evacuee (Main Character)</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: green;"></div>
-            <span>Person</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: gray;"></div>
-            <span>Trapped Person</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: yellow;"></div>
-            <span>Stairs</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: orange;"></div>
-            <span>Exit</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: black;"></div>
-            <span>Wall</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: lightblue;"></div>
-            <span>Medical station</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: purple;"></div>
-            <span>Fire extinguisher</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: cyan;"></div>
-            <span>Escape path</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: pink;"></div>
-            <span>Evacuee movement</span>
-        </div>
-    </div>
+    <button onclick="nextStep()">Next Step</button>
 
     <script>
-        let evacueePosition = {x: 0, y: 0};  // Main character position
-        let people = [];  // Array to store positions of all people
-        let fireZones = [];  // Fire zone positions
-        let path = [];  // Main character's escape path
-        let turn = 0;  // Turns counter
-        let autoSimulation = false;  // Toggle auto simulation
-
-        function updateStatus() {
-            document.getElementById('turn').innerText = turn;
-            document.getElementById('escaped').innerText = people.filter(p => p.type === 'escaped').length;
-            document.getElementById('trapped').innerText = people.filter(p => p.type === 'trapped').length;
-        }
-
-        function renderMap() {
-            const map = document.getElementById('map');
-            map.innerHTML = '';  // Clear any existing map content
-
-            // 1. Render grid
-            for (let y = 0; y < 9; y++) {
-                for (let x = 0; x < 9; x++) {
-                    const cell = document.createElement('div');
-                    cell.classList.add('cell', 'empty');
-                    const pos = [x, y];
-
-                    // Render fire, walls, extinguishers, etc.
-                    if (fireZones.some(p => p[0] === x && p[1] === y)) cell.classList.add('fire');
-                    if (walls.some(p => p[0] === x && p[1] === y)) cell.classList.add('wall');
-                    if (medicalPoints.some(p => p[0] === x && p[1] === y)) cell.classList.add('medical');
-                    if (extinguishers.some(p => p[0] === x && p[1] === y)) cell.classList.add('extinguisher');
-                    if (STAIRS.some(p => p[0] === x && p[1] === y)) cell.classList.add('stairs');
-                    if (EXIT_LOCATIONS.some(p => p[0] === x && p[1] === y)) cell.classList.add('exit');
-
-                    // Append to map
-                    cell.style.gridColumnStart = x + 1;
-                    cell.style.gridRowStart = y + 1;
-                    map.appendChild(cell);
+        let fireZones = {{ fire|tojson }};
+        let path = [];
+        let people = {{ people|tojson }};
+        let evacuee = {{ evacuee|tojson }};
+        let walls = {{ walls|tojson }};
+        let exits = {{ exits|tojson }};
+        let stairs = {{ stairs|tojson }};
+        
+        function updateMap() {
+            // Reset the map
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    let cell = document.getElementById(`cell-${i}-${j}`);
+                    cell.className = 'cell'; // Reset the class
                 }
             }
+            
+            // Mark fire zones
+            fireZones.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('fire');
+            });
 
-            // 2. Render escape path for the main character
-            if (path.length > 0) {
-                path.forEach(step => {
-                    const pathCell = document.createElement('div');
-                    pathCell.classList.add('cell', 'path');
-                    pathCell.style.gridColumnStart = step[0] + 1;
-                    pathCell.style.gridRowStart = step[1] + 1;
-                    map.appendChild(pathCell);
-                });
-            }
+            // Mark evacuee
+            let [evacueeX, evacueeY] = evacuee;
+            let evacueeCell = document.getElementById(`cell-${evacueeX}-${evacueeY}`);
+            evacueeCell.classList.add('evacuee');
 
-            // 3. Render the main character's current position
-            const evacueeCell = document.createElement('div');
-            evacueeCell.classList.add('cell', 'moving');
-            evacueeCell.style.gridColumnStart = evacueePosition.x + 1;
-            evacueeCell.style.gridRowStart = evacueePosition.y + 1;
-            map.appendChild(evacueeCell);
-        }
+            // Mark people
+            people.forEach(person => {
+                let cell = document.getElementById(`cell-${person.x}-${person.y}`);
+                cell.classList.add('person');
+            });
 
-        function nextStep() {
-            // Simulate next step in evacuation process
-            turn++;
-            // Update status and path for the main character
-            updateStatus();
-            renderMap();
-        }
+            // Mark walls
+            walls.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('wall');
+            });
 
-        function toggleAuto() {
-            autoSimulation = !autoSimulation;
-            if (autoSimulation) {
-                // Auto simulation logic goes here
-                setInterval(nextStep, 1000);
-            }
-        }
+            // Mark exits
+            exits.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('exit');
+            });
 
-        // Initialization
-        function initSimulation() {
-            // Fetch the initial simulation data from the server
-            fetch('/').then(response => response.json()).then(data => {
-                evacueePosition = data.evacuations.main_character;
-                fireZones = data.fire_zones;
-                people = data.people;
-                renderMap();
+            // Mark stairs
+            stairs.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('stair');
+            });
+
+            // Mark path (if any)
+            path.forEach(([x, y]) => {
+                let cell = document.getElementById(`cell-${x}-${y}`);
+                cell.classList.add('path');
             });
         }
 
-        initSimulation();
+        function nextStep() {
+            fetch('/next')
+                .then(response => response.json())
+                .then(data => {
+                    fireZones = data.fire;
+                    path = data.path;
+                    updateMap();
+                });
+        }
+
+        // Initialize the map when the page loads
+        updateMap();
     </script>
 </body>
 </html>
