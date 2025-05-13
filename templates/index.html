@@ -47,17 +47,6 @@
     <button onclick="simulateStep()">Start Simulation</button>
     <p id="status"></p>
 
-    <!-- Legend to explain color meanings -->
-    <div class="legend">
-        <h3>Legend:</h3>
-        <div><span class="color-box" style="background-color: red;"></span> Fire Zone</div>
-        <div><span class="color-box" style="background-color: blue;"></span> Escape Path</div>
-        <div><span class="color-box" style="background-color: black;"></span> Evacuee</div>
-        <div><span class="color-box" style="background-color: green;"></span> Exit</div>
-        <div><span class="color-box" style="background-color: purple;"></span> Stairs</div>
-        <div><span class="color-box" style="background-color: yellow;"></span> People</div>
-    </div>
-
     <!-- Container to hold both floors side by side -->
     <div class="container">
         {% for floor in range(floor_count|int - 1, -1, -1) %}
@@ -74,6 +63,17 @@
         {% endfor %}
     </div>
 
+    <!-- Legend to explain color meanings -->
+    <div class="legend">
+        <h3>Legend:</h3>
+        <div><span class="color-box" style="background-color: red;"></span> Fire Zone</div>
+        <div><span class="color-box" style="background-color: blue;"></span> Escape Path</div>
+        <div><span class="color-box" style="background-color: black;"></span> Evacuee</div>
+        <div><span class="color-box" style="background-color: green;"></span> Exit</div>
+        <div><span class="color-box" style="background-color: purple;"></span> Stairs</div>
+        <div><span class="color-box" style="background-color: yellow;"></span> People</div>
+    </div>
+    
     <script>
         const fire = {{ fire | tojson }};
         const evacuee = {{ evacuee | tojson }};
