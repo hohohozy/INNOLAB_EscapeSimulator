@@ -1,101 +1,90 @@
 from flask import Flask, render_template, jsonify
 import random
-from collections import deque
-import time
 
 app = Flask(__name__)
 
 MAP_WIDTH = 9
 MAP_HEIGHT = 9
 FLOORS = 2
-EXIT_LOCATIONS = [(0, 8), (8, 8)]  # Ground floor exits
-STAIRS = [(4, 4)]  # Shared stair location across floors
 
-# Global simulation state
-floors = {}
-fire_expansion_interval = 0.5  # Seconds between fire expansions
+# Global states
+fire_zones = []
+evacuee_pos = (0, 0, 1)  # (x, y, floor)
+stairs = [(4, 4)]  # Shared location on both floors
+exits = [(0, 8, 0), (8, 8, 0)]  # Ground floor exits
+people = []  # Random people positions
 
-# Initialize the simulation with multiple floors
 def init_simulation():
-    global floors
-    floors = {}
-    for floor in range(FLOORS):
-        fire_zones = [(random.randint(0, MAP_WIDTH-1), random.randint(0, MAP_HEIGHT-1))]
-        evacuee_pos = (0, 0)
-        people = [{'x': random.randint(0, MAP_WIDTH-1), 'y': random.randint(0, MAP_HEIGHT-1), 'type': 'person'} for _ in range(random.randint(5, 15))]
-        walls = [(random.randint(0, MAP_WIDTH-1), random.randint(0, MAP_HEIGHT-1)) for _ in range(random.randint(3, 7))]
-        extinguishers = [(random.randint(0, MAP_WIDTH-1), random.randint(0, MAP_HEIGHT-1)) for _ in range(random.randint(1, 3))]
-        medical_points = [(random.randint(0, MAP_WIDTH-1), random.randint(0, MAP_HEIGHT-1)) for _ in range(random.randint(1, 2))]
+    global fire_zones, evacuee_pos, people
+    fire_zones = [(random.randint(0, 8), random.randint(0, 8), random.randint(0, 1))]
+    evacuee_pos = (random.randint(0, 8), random.randint(0, 8), 1)
+    people = []
+    for _ in range(random.randint(8, 15)):
+        people.append((random.randint(0, 8), random.randint(0, 8), random.randint(0, 1)))
 
-        # Store floor data
-        floors[floor] = {
-            'fire': fire_zones,
-            'evacuee': evacuee_pos,
-            'people': people,
-            'walls': walls,
-            'extinguishers': extinguishers,
-            'medical_points': medical_points,
-        }
-
-# Spread the fire to adjacent cells (automatic expansion)
-def expand_fire(floor):
-    global floors
-    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # Up, Down, Left, Right
-    new_fire = []
-    for (x, y) in floors[floor]['fire']:
+def expand_fire():
+    global fire_zones
+    new_fire = fire_zones[:]
+    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    for x, y, f in fire_zones:
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
-            if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and (nx, ny) not in floors[floor]['fire']:
-                new_fire.append((nx, ny))
-    floors[floor]['fire'].extend(new_fire)
+            if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT:
+                new_cell = (nx, ny, f)
+                if new_cell not in new_fire:
+                    new_fire.append(new_cell)
+    fire_zones = new_fire
 
-# Find the escape path for the main character
-def find_escape_path(start, floor):
+def find_escape_path(start):
+    from collections import deque
     visited = set()
-    queue = deque([(start, [start])])  # (position, path)
+    queue = deque()
+    queue.append((start, [start]))
     directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
     while queue:
-        (x, y), path = queue.popleft()
-        if (x, y) in EXIT_LOCATIONS:
-            return path  # Path to exit found
-
+        (x, y, f), path = queue.popleft()
+        if (x, y, f) in exits:
+            return path
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
-            if (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT) and (nx, ny) not in visited and (nx, ny) not in floors[floor]['fire'] and (nx, ny) not in floors[floor]['walls']:
-                visited.add((nx, ny))
-                queue.append(((nx, ny), path + [(nx, ny)]))
-
+            next_pos = (nx, ny, f)
+            if (0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT
+                and next_pos not in visited
+                and next_pos not in fire_zones):
+                visited.add(next_pos)
+                queue.append((next_pos, path + [next_pos]))
+        if (x, y) in stairs:
+            new_floor = 1 - f
+            stair_pos = (x, y, new_floor)
+            if stair_pos not in visited and stair_pos not in fire_zones:
+                visited.add(stair_pos)
+                queue.append((stair_pos, path + [stair_pos]))
     return []
-
-# Start the fire expansion and path generation simulation
-@app.route('/start_simulation')
-def start_simulation():
-    init_simulation()
-
-    # Expand fire automatically for a few cycles (simulate over time)
-    for _ in range(5):  # Adjust the number of expansions based on the desired speed
-        time.sleep(fire_expansion_interval)  # Simulate time delay for fire expansion
-        expand_fire(0)  # Currently expanding on floor 0, modify for multi-floor logic if needed
-
-    # Calculate the escape path
-    path = find_escape_path(floors[0]['evacuee'], 0)
-    
-    return jsonify({
-        'fire': floors[0]['fire'],
-        'path': path
-    })
 
 @app.route('/')
 def index():
+    init_simulation()
     return render_template(
         'index.html',
         map_width=MAP_WIDTH,
         map_height=MAP_HEIGHT,
-        floors=FLOORS,
-        exits=EXIT_LOCATIONS,
-        stairs=STAIRS,
+        evacuee=evacuee_pos,
+        stairs=stairs,
+        exits=exits,
+        people=people,
+        floor_count=FLOORS,
+        fire=fire_zones
     )
+
+@app.route('/next')
+def next_step():
+    expand_fire()
+    path = find_escape_path(evacuee_pos)
+    return jsonify({
+        'fire': fire_zones,
+        'path': path
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
