@@ -17,10 +17,11 @@ evacuee_pos = (0, 0)  # Main character position
 walls = []  # Walls blocking the path
 extinguishers = []  # Locations of fire extinguishers
 medical_points = []  # Locations for medical stations
+current_floor = 0  # Start on the ground floor
 
 # Initialize the simulation
 def init_simulation():
-    global people, fire_zones, evacuee_pos, walls, extinguishers, medical_points
+    global people, fire_zones, evacuee_pos, walls, extinguishers, medical_points, current_floor
     fire_zones = [(random.randint(0, MAP_WIDTH-1), random.randint(0, MAP_HEIGHT-1))]
     evacuee_pos = (0, 0)
     people = [{'x': random.randint(0, MAP_WIDTH-1), 'y': random.randint(0, MAP_HEIGHT-1), 'type': 'person'} for _ in range(random.randint(5, 15))]
@@ -39,6 +40,12 @@ def expand_fire():
             if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT and (nx, ny) not in fire_zones:
                 new_fire.append((nx, ny))
     fire_zones.extend(new_fire)
+
+# Reduce fire size when extinguishers are used
+def use_extinguisher():
+    global fire_zones
+    if extinguishers:
+        fire_zones = fire_zones[:len(fire_zones) // 2]  # Simply reduce the fire zones by half for now
 
 # Find the escape path for the main character
 def find_escape_path(start):
@@ -79,11 +86,24 @@ def index():
 
 @app.route('/next')
 def next_step():
+    global fire_zones, evacuee_pos, people, current_floor
     expand_fire()
+    use_extinguisher()  # Simulate extinguishing fire
+    
+    # Update evacuee and people movement
     path = find_escape_path(evacuee_pos)
+
+    # Update positions for people (they will try to move towards exit)
+    for person in people:
+        person_path = find_escape_path((person['x'], person['y']))
+        if person_path:
+            person['x'], person['y'] = person_path[-1]  # Move person to next position
+
     return jsonify({
         'fire': fire_zones,
-        'path': path
+        'path': path,
+        'people': people,
+        'floor': current_floor
     })
 
 if __name__ == '__main__':
